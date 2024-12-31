@@ -1,0 +1,81 @@
+---
+title: "SQL assingment"
+format: html
+editor: visual
+---
+
+```{r,include = FALSE}
+library(DBI)
+library(RSQLite)
+con_chocolate <- DBI::dbConnect(drv = RSQLite::SQLite(),
+                                 dbname = "chocolate.sqlite")
+
+```
+
+#Q1\
+1.\
+[The query display two pieces of information:]{.underline}
+
+1.  The names of sales representatives from **salesreps** table.
+
+2.  The total number of candy bars sold by each sales representative, calculated as the sum of the **amount** column from the **orders** table, labeled as total_candy_bars_sold.
+
+The data i s from **salesreps** and **orders** tables using the shared column **srid**.\
+The results are filtered to include only sales made between **January 1, 2022**, and **December 31, 2022**, and only for sales representatives who joined the company in **2010**.\
+The final output is grouped by the names of the sales representatives.
+
+\
+2.
+
+```{sql, connection = con_chocolate, output.var = "Q1"}
+SELECT salesreps.Name, SUM(orders.amount) AS total_candy_bars_sold
+FROM salesreps INNER JOIN orders USING (srid)
+WHERE
+orders.sale_date BETWEEN '2022-01-01' AND '2022-12-31'
+AND salesreps.year_joined = 2010
+GROUP BY salesreps.Name;
+print(Q1)
+
+```
+
+\
+#Q2
+
+```{sql connection = con_chocolate, output.var = "Q2"}
+SELECT total_orders, count(total_orders) as N
+from (
+SELECT COUNT(orders.cid) AS total_orders
+    FROM orders
+    GROUP BY cid
+    )
+    AS subquery
+GROUP BY total_orders;
+print(Q2)
+
+```
+
+#Q3\
+\
+The candy bar with the highest number of total orders in the first quarter of 2022 is **Coconut Crave.**\
+The sales rep that sold the most of **Coconut Crave** bars in the second quarter of 2022 is **Hess, Christopher.**
+
+```{sql, connection = con_chocolate, output.var = "Q3"}
+WITH candy_bar AS (
+  SELECT pid, SUM(amount) AS total_amount
+  FROM orders
+  WHERE sale_date BETWEEN '2022-01-01' AND '2022-03-31'
+  GROUP BY pid
+  ORDER BY total_amount DESC
+  LIMIT 1
+)
+SELECT pid,candy_names, srid, salesreps.Name, SUM(amount) AS total_sales
+FROM orders
+INNER JOIN products USING (pid)
+INNER JOIN salesreps USING (srid)
+WHERE sale_date BETWEEN '2022-04-01' AND '2022-06-30'
+  AND pid IN (SELECT pid FROM candy_bar)
+GROUP BY srid, salesreps.Name
+ORDER BY total_sales DESC
+LIMIT 1;
+print (Q3)
+```
